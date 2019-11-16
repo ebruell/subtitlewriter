@@ -2,6 +2,7 @@
 #allow shorttime, longtime for questions
 import sys
 
+
 outF = open("myOutFile.txt", "w")
 subtitlenum = 0
 
@@ -42,28 +43,37 @@ def timestamp(numseconds):
     minutes = minutes % 60
     minutes = int(minutes)
     seconds = numseconds % 60
+    mseconds = (seconds % 1) * 1000
+    mseconds = round(mseconds)
     seconds = int(seconds)
     if minutes < 10:
         minutes = "0" + str(minutes)
         
     if seconds < 10:
         seconds = "0" + str(seconds)
-    timestamp = timestamp + str(hours) + ":" + str(minutes) + ":" + str(seconds) + ",000"
+    timestamp = timestamp + str(hours) + ":" + str(minutes) + ":" + str(seconds) + "," + str(mseconds)
     return timestamp
         
     
+def calculateLineTime(numwords, start, finish):
+    sectiontime = finish - start
+    numsections = numwords/12
+    linetime = sectiontime / numsections
+    roundlinetime = round(linetime*1000)/1000
+    return roundlinetime
+    
+
 def writeSection(sectionList, tstart, tfinish):
     numwords = len(sectionList)
     start = secondscalc(tstart)
     finish = secondscalc(tfinish)
-    sectiontime = finish - start
-    linetime = 12 * sectiontime // numwords
+    linetime = calculateLineTime(numwords, start, finish)
     wordIndex = 0
     linetext = ""
     wordCount = 0
-    while wordIndex < len(sectionList) - 1:
+    while wordIndex < numwords:
         word = sectionList[wordIndex]
-        if wordCount < 12 and wordIndex < len(sectionList) - 1:
+        if wordCount < 11 and wordIndex < len(sectionList) - 1:
             linetext = linetext + " " + word 
             wordIndex += 1
             wordCount += 1
@@ -71,9 +81,11 @@ def writeSection(sectionList, tstart, tfinish):
             endtime = start + linetime 
             if endtime > finish:
                 endtime = finish
+            linetext = linetext + " " + word 
             writeLine(linetext, start, endtime)
             start = endtime
             linetext = ""
+            wordIndex += 1
             wordCount = 0
             
             
@@ -90,7 +102,6 @@ def main():
     word = transcriptWords[wordIndex]
     tstart = word.strip("<").strip(">")
     while wordIndex + 1 < len(transcriptWords):
-        print(word)
         wordIndex += 1
         word = transcriptWords[wordIndex]
         sectionList = []
