@@ -1,18 +1,15 @@
-#input in commandline linetime, names
-#allow shorttime, longtime for questions
+
 import sys
 
+
 outF = open("myOutFile.txt", "w")
-currseconds = 18 #are these global yet?? I remember there's weirdness about this... 
 subtitlenum = 0
 
 
-def writeline(text, linetime):
-    global currseconds
+def writeLine(text, tstart, tfinish):
     global subtitlenum
-    tstart = timestamp(currseconds)
-    currseconds += linetime
-    tfinish = timestamp(currseconds)
+    tstart = timestamp(tstart)
+    tfinish = timestamp(tfinish)
     duration = tstart + " --> " + tfinish
     outF.write(str(subtitlenum))
     outF.write('\n')
@@ -25,116 +22,102 @@ def writeline(text, linetime):
     subtitlenum += 1
     
     
-def timestamp(linetype):
+def secondscalc(timestring):
+    timelist = timestring.split(':')
+    seconds = float(timelist[-1])
+    minutes = int(timelist[-2])
+    hours = 0
+    if len(timelist) == 3:
+        hours = int(timelist[0])
+    if len(timelist) > 3:
+        print("Error: could not read time tag ", timestring)   
+    numseconds = seconds + (minutes*60) + (hours * 3600)
+    return numseconds
+
+def timestamp(numseconds):
     timestamp = "0"
-    global currseconds
-    minutes =  currseconds//60
+    minutes =  numseconds//60
     hours = minutes//60
     hours = int(hours)
     minutes = minutes % 60
     minutes = int(minutes)
-    seconds = currseconds % 60
-    mseconds = (currseconds % 1) * 10
-    mseconds = int(mseconds)
+    seconds = numseconds % 60
+    mseconds = (seconds % 1) * 1000
+    mseconds = round(mseconds)
+    if mseconds < 10:
+        mseconds = "00" + str(mseconds)
+    elif mseconds < 100:
+        mseconds = "0" + str(mseconds)
     seconds = int(seconds)
     if minutes < 10:
         minutes = "0" + str(minutes)
         
     if seconds < 10:
         seconds = "0" + str(seconds)
-    timestamp = timestamp + str(hours) + ":" + str(minutes) + ":" + str(seconds) + "," + str(mseconds) + "00"
+    timestamp = timestamp + str(hours) + ":" + str(minutes) + ":" + str(seconds) + "," + str(mseconds)
     return timestamp
         
     
+def calculateLineTime(numwords, start, finish):
+    sectiontime = finish - start
+    numsections = numwords/12
+    linetime = sectiontime / numsections
+    roundlinetime = round(linetime*1000)/1000
+    return roundlinetime
+    
+
+def writeSection(sectionList, tstart, tfinish):
+    numwords = len(sectionList)
+    start = secondscalc(tstart)
+    finish = secondscalc(tfinish)
+    linetime = calculateLineTime(numwords, start, finish)
+    wordIndex = 0
+    linetext = ""
+    wordCount = 0
+    while wordIndex < numwords:
+        word = sectionList[wordIndex]
+        if wordCount < 11 and wordIndex < len(sectionList) - 1:
+            linetext = linetext + " " + word 
+            wordIndex += 1
+            wordCount += 1
+        else: 
+            endtime = start + linetime 
+            if endtime > finish:
+                endtime = finish
+            linetext = linetext + " " + word 
+            writeLine(linetext, start, endtime)
+            start = endtime
+            linetext = ""
+            wordIndex += 1
+            wordCount = 0
+            
+            
+    
 def main():
-    global currseconds
     transcript = sys.argv[1]
-    linetime = sys.argv[2]
-    linetime = int(linetime)
-    names = sys.argv[3]
-    listnames = names.split(',') #will give error if I don't do anything?
-    for name in listnames:
-        name = name + ":"
     inputF = open(transcript, "r")
     transcriptWords = inputF.read().split()
     wordIndex = 0
     word = transcriptWords[wordIndex]
-    while wordIndex < len(transcriptWords):
+    if word[1] == '<':
+        word = word[1:]
+    tstart = word.strip('<>')
+    print("tstart is: ", tstart)
+    while wordIndex + 1 < len(transcriptWords):
+        wordIndex += 1
         word = transcriptWords[wordIndex]
-        print("big while loop starting! at", word)
-        currlinetime = linetime
-        if word == "<longq>":
-            print("found long q after word ", transcriptWords[wordIndex - 1])
+        sectionList = []
+        while word[0] != "<":
+            sectionList.append(word)
             wordIndex += 1
             word = transcriptWords[wordIndex]
-            if transcriptWords[wordIndex - 2] != "</longq>":
-                currseconds += 1
-            question = ""
-            tempWordIndex = wordIndex
+        tfinish = word.strip("<").strip(">")
+        writeSection(sectionList, tstart, tfinish)
+        tstart = tfinish
+        
             
-            while word != "</longq>":
-                print("lq: ", word)
-                question = question + " " + word
-                wordIndex += 1
-                if wordIndex >= len(transcriptWords):
-                    print("error: missing lonq closer after word ", transcriptWords[tempWordIndex + 1])
-                    exit()
-                word = transcriptWords[wordIndex]
-            wordIndex += 1
+
                 
-                
-                
-                
-            writeline(question, 13)
-            currseconds += 0.5
-        elif word == "<shortq>":
-            print("found shortq after word ", transcriptWords[wordIndex - 1])
-            currseconds += 1
-            question = ""
-            wordIndex += 1
-            word = transcriptWords[wordIndex]
-            tempWordIndex = wordIndex
-            while word != "</shortq>":
-                print("q: ", word)
-                question = question + " " + word
-                wordIndex += 1
-                if wordIndex >= len(transcriptWords):
-                    print("error: missing shortq closer after word ", transcriptWords[tempWordIndex + 1])
-                    exit()
-                word = transcriptWords[wordIndex]
-            writeline(question, 4)
-            wordIndex += 1
-        elif word == "</shortq>":
-            print("error: encountered shortq closer without open")
-            exit()
-        elif word == "</longq>":
-            print("error: encountered longq closer without open")
-            exit()
-        else:
-            wordCount = 0
-            currline = ""
-            caughtq = False
-            while wordCount < 16 and not caughtq:
-                if wordIndex >= len(transcriptWords):
-                    currlinetime = (wordCount // 2) + 1
-                    break
-                word = transcriptWords[wordIndex]
-              
-                if word in listnames:
-                    currline = currline + "\n"
-                
-                
-                
-                if word == "<longq>" or word == "<shortq>":
-                    currlinetime = (wordCount // 2) + 1
-                    caughtq = True
-                else:
-                    currline = currline + " " + word
-                    print(word)
-                    wordIndex += 1
-                    wordCount += 1
-            writeline(currline, currlinetime)
-            
                     
 
         
