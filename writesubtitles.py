@@ -1,4 +1,3 @@
-
 import sys
 
 
@@ -23,6 +22,10 @@ def writeLine(text, tstart, tfinish):
     
     
 def secondscalc(timestring):
+    for i in range(len(timestring) - 1):
+        if timestring[i] not in '1234567890.:':
+            print("Error: invalid time tag ", timestring)
+            exit()
     timelist = timestring.split(':')
     seconds = float(timelist[-1])
     minutes = int(timelist[-2])
@@ -97,12 +100,14 @@ def main():
     transcript = sys.argv[1]
     inputF = open(transcript, "r")
     transcriptWords = inputF.read().split()
+    if "<" not in transcriptWords[-1]:
+        print("Error: last word in file must be time tag")
+        exit()
     wordIndex = 0
     word = transcriptWords[wordIndex]
     if word[1] == '<':
         word = word[1:]
     tstart = word.strip('<>')
-    print("tstart is: ", tstart)
     while wordIndex + 1 < len(transcriptWords):
         wordIndex += 1
         word = transcriptWords[wordIndex]
@@ -112,7 +117,11 @@ def main():
             wordIndex += 1
             word = transcriptWords[wordIndex]
         tfinish = word.strip("<").strip(">")
-        writeSection(sectionList, tstart, tfinish)
+        if len(sectionList) != 0:
+            writeSection(sectionList, tstart, tfinish)
+        if secondscalc(tstart) > secondscalc(tfinish):
+            print("error: current time tag is earlier than previous time tag. Current time tag: ", tfinish)
+            exit()
         tstart = tfinish
         
             
